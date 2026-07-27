@@ -1,0 +1,11 @@
+node_modules/
+sessions/
+.data/
+database.sqlite
+database.sqlite-shm
+database.sqlite-wal
+.env
+*.log
+*.zip
+session-backup.db
+package-lock.json
