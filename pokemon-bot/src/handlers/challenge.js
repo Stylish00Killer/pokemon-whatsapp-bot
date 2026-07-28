@@ -7,7 +7,7 @@
  */
 
 const utils = require('../utils');
-const { continueSelection } = require('./battle');
+const { continueSelection } = require('../engine/battle');
 
 // In-memory pending challenges: groupJid → { challenger, challengee }
 const pokemonChallengeResponse = new Map();

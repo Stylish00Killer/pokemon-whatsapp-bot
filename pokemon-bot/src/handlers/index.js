@@ -25,7 +25,7 @@ const COMMANDS = {
     'pve':              require('./pve'),
     // Battle — PVP (full system)
     'challenge':        require('./challenge'),
-    'battle':           require('./battle'),
+    'battle':           require('../engine/battle'),
     // Move management
     'learn':            require('./learn'),
     'cancel-evolution': require('./cancel_evolution'),

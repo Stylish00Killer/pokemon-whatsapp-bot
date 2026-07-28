@@ -39,16 +39,25 @@ waitForPort = 3000
 name = "Pokemon Bot"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd pokemon-bot && bash start.sh"
-
-[workflows.workflow.metadata]
-outputType = "console"
+waitForPort = 3001
 
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[[ports]]
+localPort = 3001
+externalPort = 3002
+
+[[ports]]
+localPort = 6666
+externalPort = 3000
 
 [userenv]
 

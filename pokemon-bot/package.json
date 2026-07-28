@@ -17,6 +17,7 @@
     "axios": "^1.4.0",
     "better-sqlite3": "^9.4.3",
     "canvas": "^2.11.2",
+    "express": "^5.2.1",
     "node-cron": "^3.0.2",
     "pino": "^8.14.1",
     "pokenode-ts": "^1.20.0",
