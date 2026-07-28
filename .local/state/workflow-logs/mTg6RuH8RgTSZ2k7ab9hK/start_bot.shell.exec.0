@@ -1,0 +1,46 @@
+[BUILD] Source files changed — rebuilding...
+[BUILD] Building React dashboard...
+[BUILD] Installing dashboard dependencies...
+
+> eve-bot-dashboard@2.0.0 build
+> vite build
+
+[1G[0K[36mvite v5.4.21 [32mbuilding for production...[36m[39m
+[2K[1Gtransforming (1) [2mindex.html[22m[2K[1Gtransforming (12) [2mnode_modules/react/cjs/react-jsx-runtime.production.min.j[2K[1Gtransforming (30) [2mnode_modules/lucide-react/dist/esm/lucide-react.js[22m[2K[1Gtransforming (31) [2mnode_modules/scheduler/cjs/scheduler.production.min.js[2[2K[1Gtransforming (663) [2mnode_modules/lucide-react/dist/esm/icons/globe.js[22m[2K[1Gtransforming (1029) [2mnode_modules/lucide-react/dist/esm/icons/library-big.js[2K[1Gtransforming (1356) [2mnode_modules/lucide-react/dist/esm/icons/volume.js[22m[2K[1Gtransforming (1482) [2mnode_modules/lucide-react/dist/esm/defaultAttributes.js[2K[1G[2K[1G[32m✓[39m 1482 modules transformed.
+[2K[1Gtransforming (1485) [2mnode_modules/react-chartjs-2/dist/index.js[22m[2K[1Gtransforming (1488) [2mnode_modules/chart.js/dist/chunks/helpers.dataset.js[2[2K[1Grendering chunks (1)...[2K[1Grendering chunks (2)...[2K[1Grendering chunks (3)...[2K[1Grendering chunks (4)...[2K[1Grendering chunks (5)...[2K[1Grendering chunks (6)...[2K[1Grendering chunks (7)...[2K[1Grendering chunks (8)...[2K[1Grendering chunks (9)...[2K[1Grendering chunks (10)...[2K[1G[2K[1Gcomputing gzip size (0)...[2K[1Gcomputing gzip size (1)...[2K[1Gcomputing gzip size (2)...[2K[1Gcomputing gzip size (3)...[2K[1Gcomputing gzip size (4)...[2K[1Gcomputing gzip size (5)...[2K[1Gcomputing gzip size (6)...[2K[1Gcomputing gzip size (7)...[2K[1Gcomputing gzip size (8)...[2K[1Gcomputing gzip size (9)...[2K[1Gcomputing gzip size (10)...[2K[1Gcomputing gzip size (11)...[2K[1Gcomputing gzip size (12)...[2K[1G[2mdist/[22m[32mindex.html                    [39m[1m[2m  1.09 kB[22m[1m[22m[2m │ gzip:  0.55 kB[22m
+[2mdist/[22m[2massets/[22m[35mindex-DaS8uT8I.css     [39m[1m[2m 13.19 kB[22m[1m[22m[2m │ gzip:  3.17 kB[22m
+[2mdist/[22m[2massets/[22m[36mcharts-CLk_nKph.js     [39m[1m[2m  0.92 kB[22m[1m[22m[2m │ gzip:  0.58 kB[22m
+[2mdist/[22m[2massets/[22m[36mLogin-BJkFxR-t.js      [39m[1m[2m  1.18 kB[22m[1m[22m[2m │ gzip:  0.63 kB[22m
+[2mdist/[22m[2massets/[22m[36mConfig-fvzO-TUx.js     [39m[1m[2m  3.28 kB[22m[1m[22m[2m │ gzip:  1.50 kB[22m
+[2mdist/[22m[2massets/[22m[36mDevTools-wr6fJbut.js   [39m[1m[2m  4.12 kB[22m[1m[22m[2m │ gzip:  1.26 kB[22m
+[2mdist/[22m[2massets/[22m[36mCommands-VVPsyZid.js   [39m[1m[2m  4.32 kB[22m[1m[22m[2m │ gzip:  1.86 kB[22m
+[2mdist/[22m[2massets/[22m[36mGroups-BNG2_t8p.js     [39m[1m[2m  5.58 kB[22m[1m[22m[2m │ gzip:  2.36 kB[22m
+[2mdist/[22m[2massets/[22m[36mDashboard-LJDx0sAv.js  [39m[1m[2m  6.37 kB[22m[1m[22m[2m │ gzip:  2.13 kB[22m
+[2mdist/[22m[2massets/[22m[36mindex-C6SSjcxM.js      [39m[1m[2m  6.81 kB[22m[1m[22m[2m │ gzip:  2.78 kB[22m
+[2mdist/[22m[2massets/[22m[36micons-Czg0lftX.js      [39m[1m[2m  9.00 kB[22m[1m[22m[2m │ gzip:  2.31 kB[22m
+[2mdist/[22m[2massets/[22m[36mvendor-BIEsI6q7.js     [39m[1m[2m163.94 kB[22m[1m[22m[2m │ gzip: 53.46 kB[22m
+[32m✓ built in 1.79s[39m
+[1G[0K⠙[1G[0K[BUILD] Dashboard ready.
+[1m[36m[39m[22m
+[1m[36m███████╗██╗   ██╗███████╗[39m[22m
+[1m[36m██╔════╝██║   ██║██╔════╝[39m[22m
+[1m[36m█████╗  ██║   ██║█████╗  [39m[22m
+[1m[36m██╔══╝  ╚██╗ ██╔╝██╔══╝  [39m[22m
+[1m[36m███████╗ ╚████╔╝ ███████╗[39m[22m
+[1m[36m╚══════╝  ╚═══╝  ╚══════╝[39m[22m
+[1m[37m[39m[22m
+[1m[37m  ⚡ EVE BOT  v1.0.0  —  Made by S00K[39m[22m
+[1m[37m[39m[22m
+[32m[SESSION] ✓ Restored 3472 file(s) from backup — no QR needed[39m
+[32m[DB]     SQLite connected[39m
+[32m[SERVER] Dashboard running on port 3000[39m
+[CARD] Spawn scheduler started (every 20 min).
+[38;2;255;255;0m[BOT]    Connecting to WhatsApp…[39m
+[32m[BOT]    ✓ Connected to WhatsApp[39m
+[36m[BOT]    Name   : Alice[39m
+[36m[BOT]    Prefix : -[39m
+[36m[BOT]    Mods   : 1[39m
+[1m[32m[39m[22m
+[1m[32m  ✅ Ready[39m[22m
+[1m[32m[39m[22m
+[36m[CMD]    40 commands loaded[39m

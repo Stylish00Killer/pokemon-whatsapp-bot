@@ -1,50 +1,63 @@
 'use strict';
 
 /**
- * !pve — Spawn a wild Pokémon encounter.
- *
- * Usage:
- *   !pve   → encounter a random wild Pokémon and start a PVE battle
- *
- * After this command the player uses *!fight [move]* to attack.
- * The wild Pokémon retaliates automatically after each player move.
+ * !pve — Spawn a wild Pokémon encounter using real PokéAPI data.
+ * Updated to use data/pokemon.js spawnWild() and the new battle engine.
  */
 
 const { spawnWild } = require('../data/pokemon');
-const { players } = require('../store/players');
-const { hasSession, createPVE } = require('../engine/battle');
+const utils = require('../utils');
+
+// In-memory PVE sessions: groupJid::senderJid → { player, wild }
+const pveSessions = new Map();
+
+function sessionKey(groupJid, playerJid) {
+    return `${groupJid}::${playerJid}`;
+}
 
 module.exports = async function pveHandler({ client, msg, from, sender, isGroup }) {
-    if (!isGroup) {
+    if (!isGroup)
         return client.sendMessage(from, { text: '❌ PVE battles can only be started in a group chat.' }, { quoted: msg });
-    }
 
-    // Ensure player is registered
-    const player = players.get(sender);
-    if (!player?.pokemon) {
+    const party = client.poke.get(`${sender}_Party`) || [];
+    if (!party.length || !party.some(p => p.hp > 0))
         return client.sendMessage(from, {
-            text: '❌ You need to register first! Use *!start* to choose your starter Pokémon.',
+            text: '❌ You need healthy Pokémon to battle! Use *!start* to register and *!heal* if they\'re fainted.',
         }, { quoted: msg });
-    }
 
-    // Prevent starting if already in a battle
-    if (hasSession(from, sender)) {
-        return client.sendMessage(from, {
-            text: '❌ You already have an active battle!\nUse *!fight [move]* to continue, or ask your opponent to *!pvp cancel*.',
-        }, { quoted: msg });
-    }
+    if (pveSessions.has(sessionKey(from, sender)))
+        return client.sendMessage(from, { text: '❌ You already have an active PVE battle! Use *!fight <number>* to continue.' }, { quoted: msg });
 
-    // Spawn a wild Pokémon
-    const wild = spawnWild();
+    await client.sendMessage(from, { text: '⏳ Summoning a wild Pokémon…' }, { quoted: msg });
 
-    createPVE(from, sender, player.pokemon, wild);
+    try {
+        const wild   = await spawnWild();
+        const player = party.find(p => p.hp > 0);
 
-    return client.sendMessage(from, {
-        text:
-            `🌿 *A wild ${wild.name} appeared!* ${wild.emoji}\n\n` +
+        pveSessions.set(sessionKey(from, sender), { player, wild, groupJid: from, senderJid: sender });
+
+        const buffer = await utils.getBuffer(wild.image).catch(() => null);
+        const caption =
+            `🌿 *A wild ${utils.capitalize(wild.name)} appeared!*\n\n` +
+            `🔥 Types: ${wild.types.map(utils.capitalize).join(', ')}\n` +
+            `🔹 Level: ${wild.level}\n` +
             `❤️ HP: ${wild.hp}/${wild.maxHp} | ⚔️ ATK: ${wild.attack} | 🛡️ DEF: ${wild.defense}\n\n` +
-            `Your ${player.pokemon.emoji} *${player.pokemon.name}* (HP: ${player.pokemon.hp}/${player.pokemon.maxHp})\n` +
-            `📋 Moves: ${player.pokemon.moves.join(', ')}\n\n` +
-            `Use *!fight [move]* to attack!\nExample: *!fight ${player.pokemon.moves[0]}*`,
-    }, { quoted: msg });
+            `Your ${utils.capitalize(player.name)} (Lv. ${player.level}) — HP: ${player.hp}/${player.maxHp}\n` +
+            `📋 Moves: ${player.moves.map((m, i) => `${i + 1}. ${m.name.split('-').map(utils.capitalize).join(' ')}`).join(' | ')}\n\n` +
+            `Use *!fight <number>* to attack! e.g. *!fight 1*`;
+
+        if (buffer) {
+            await client.sendMessage(from, { image: buffer, caption }, { quoted: msg });
+        } else {
+            await client.sendMessage(from, { text: caption }, { quoted: msg });
+        }
+    } catch (err) {
+        pveSessions.delete(sessionKey(from, sender));
+        console.error('[pve]', err);
+        return client.sendMessage(from, { text: `❌ Failed to summon a wild Pokémon: ${err.message}` }, { quoted: msg });
+    }
 };
+
+// Export pveSessions so fight.js can use them
+module.exports.pveSessions = pveSessions;
+module.exports.sessionKey  = sessionKey;

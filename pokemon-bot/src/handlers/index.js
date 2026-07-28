@@ -3,29 +3,39 @@
 /**
  * Command router — dispatches messages that start with the bot prefix (!)
  * to the appropriate handler.
- *
- * To add a new command, create a handler in this directory and register it
- * in the COMMANDS map below.
  */
-
-const startCmd = require('./start');
-const pvpCmd   = require('./pvp');
-const pveCmd   = require('./pve');
-const fightCmd = require('./fight');
 
 const PREFIX = '!';
 
 const COMMANDS = {
-    start: startCmd,
-    pvp:   pvpCmd,
-    pve:   pveCmd,
-    fight: fightCmd,
+    // Onboarding
+    'start':            require('./start'),
+    // Catching & spawning
+    'catch':            require('./catch'),
+    'pg':               require('./pg'),
+    // Economy & items
+    'daily':            require('./daily'),
+    'heal':             require('./heal'),
+    // Party & storage
+    'party':            require('./party'),
+    'pss':              require('./pss'),
+    // Pokédex
+    'dex':              require('./dex'),
+    // Battle — PVE
+    'pve':              require('./pve'),
+    // Battle — PVP (full system)
+    'challenge':        require('./challenge'),
+    'battle':           require('./battle'),
+    // Move management
+    'learn':            require('./learn'),
+    'cancel-evolution': require('./cancel_evolution'),
+    // Legacy simple PVP (fight sub-command from old engine)
+    'pvp':              require('./pvp'),
+    'fight':            require('./fight'),
 };
 
 /**
  * Extract the plain-text body from any supported message type.
- * @param {object} msg  Baileys raw message
- * @returns {string}
  */
 function getBody(msg) {
     const m = msg.message;
@@ -40,18 +50,14 @@ function getBody(msg) {
 }
 
 /**
- * Resolve the actual sender JID (participant in groups, remoteJid in DMs).
- * @param {object} msg
- * @returns {string}
+ * Resolve the actual sender JID.
  */
 function getSender(msg) {
     return msg.key.participant || msg.key.remoteJid;
 }
 
 /**
- * Main message handler — called on every messages.upsert notify event.
- * @param {object} client  Baileys socket
- * @param {object} msg     Raw Baileys message
+ * Main message handler.
  */
 module.exports = async function handleMessage(client, msg) {
     try {
@@ -62,14 +68,13 @@ module.exports = async function handleMessage(client, msg) {
         const sender = getSender(msg);
         const isGroup = from.endsWith('@g.us');
 
-        // Ignore messages from the bot itself
         if (msg.key.fromMe) return;
 
         const [rawCmd, ...args] = body.slice(PREFIX.length).trim().split(/\s+/);
         const cmdName = rawCmd.toLowerCase();
 
         const handler = COMMANDS[cmdName];
-        if (!handler) return; // unknown command — stay silent
+        if (!handler) return;
 
         const ctx = { client, msg, from, sender, args, isGroup, body };
         await handler(ctx);
