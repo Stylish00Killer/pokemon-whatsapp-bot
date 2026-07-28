@@ -19,6 +19,10 @@ author = "agent"
 task = "workflow.run"
 args = "Start Bot"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Pokemon Bot"
+
 [[workflows.workflow]]
 name = "Start Bot"
 author = "agent"
@@ -28,8 +32,19 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash start.sh"
+args = "cd eve-bot && bash start.sh"
 waitForPort = 3000
+
+[[workflows.workflow]]
+name = "Pokemon Bot"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd pokemon-bot && bash start.sh"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[ports]]
 localPort = 3000
@@ -38,7 +53,9 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-NAME = "EVE"
+NAME = "EvE"
 PREFIX = "-"
 MODS_GROUP = "120363236615391329@g.us"
 OWNER = "919028230554"
+ADMIN_PASSWORD = "0000"
+PORT = "3000"
