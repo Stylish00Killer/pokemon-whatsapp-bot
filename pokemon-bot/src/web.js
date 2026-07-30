@@ -73,7 +73,7 @@ const setQR = (qrStr) => {
     _connected = false;
     try {
         const qrImage = require('qr-image');
-        _qrImg = Buffer.concat(qrImage.imageSync(qrStr, { type: 'png' }));
+        _qrImg = qrImage.imageSync(qrStr, { type: 'png' });
     } catch {}
 };
 const setConnected = (v) => {
@@ -232,6 +232,185 @@ function setupWeb(app) {
         } catch (e) {
             res.json({ battles: [] });
         }
+    });
+
+    app.get('/api/groups', (req, res) => {
+        try {
+            const c = _client;
+            if (!c) return res.json({ groups: [] });
+
+            // Groups with wild-spawn enabled (stored as array under 'wild' key)
+            let wildJids = [];
+            try {
+                const rows = c.poke?.all?.() || [];
+                const wildRow = rows.find(r => String(r.id) === 'wild');
+                if (wildRow) wildJids = Array.isArray(wildRow.value) ? wildRow.value : [];
+            } catch {}
+
+            // Active wilds and battles keyed by group JID
+            const activeWildSet   = new Set(c.pokemonResponse     ? [...c.pokemonResponse.keys()]     : []);
+            const activeBattleSet = new Set(c.pokemonBattleResponse ? [...c.pokemonBattleResponse.keys()] : []);
+
+            // Union of all known groups
+            const allJids = new Set([...wildJids, ...activeWildSet, ...activeBattleSet]);
+
+            // Count players per group from DB
+            const playerCountByGroup = {};
+            try {
+                const rows = c.poke?.all?.() || [];
+                rows.filter(r => String(r.id).endsWith('_Party')).forEach(r => {
+                    const jid = String(r.id).replace(/_Party$/, '');
+                    // player JIDs don't carry group info directly; skip grouping by player here
+                });
+            } catch {}
+
+            const groups = [...allJids].map(jid => {
+                const battle = c.pokemonBattleResponse?.get?.(jid);
+                return {
+                    jid,
+                    shortId:      jid.split('@')[0],
+                    wildEnabled:  wildJids.includes(jid),
+                    activeWild:   activeWildSet.has(jid),
+                    activeBattle: activeBattleSet.has(jid),
+                    wildPokemon:  c.pokemonResponse?.get?.(jid)?.name || null,
+                    battleInfo:   battle ? {
+                        p1:    battle.player1?.user?.split('@')[0] || '?',
+                        p2:    battle.player2?.user?.split('@')[0] || '?',
+                        turn:  battle.turn || 0,
+                    } : null,
+                };
+            });
+
+            res.json({ groups });
+        } catch (e) {
+            res.json({ groups: [], error: e.message });
+        }
+    });
+
+    // ── Admin auth middleware ─────────────────────────────────────────────
+    function adminAuth(req, res, next) {
+        const envKey = process.env.ADMIN_KEY;
+        if (!envKey) return next();                         // no key set → open
+        if (req.headers['x-admin-key'] === envKey) return next();
+        return res.status(401).json({ ok: false, error: 'Unauthorized' });
+    }
+
+    // Normalise a raw phone or JID → full WhatsApp JID
+    function toJid(raw) {
+        if (!raw) return null;
+        raw = String(raw).trim();
+        return raw.includes('@') ? raw : `${raw}@s.whatsapp.net`;
+    }
+
+    // ── POST /api/admin/spawn ─────────────────────────────────────────────
+    app.post('/api/admin/spawn', adminAuth, async (req, res) => {
+        try {
+            const c = _client;
+            if (!c) return res.json({ ok: false, error: 'Bot not connected' });
+
+            const { spawnWild } = require('./data/pokemon');
+            const utils         = require('./utils');
+            const groupJid      = req.body?.groupJid ? toJid(req.body.groupJid) : null;
+
+            const wildData = await spawnWild();
+            const buffer   = await utils.getBuffer(wildData.image);
+            const cap      = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+            let targets = groupJid ? [groupJid] : (c.DB?.get('wild') || []);
+            if (!targets.length) {
+                return res.json({ ok: false, error: 'No groups with wild-spawn enabled. Use !pg in a group first, or supply a groupJid.' });
+            }
+
+            let sent = 0;
+            for (const jid of targets) {
+                try {
+                    c.pokemonResponse.set(jid, wildData);
+                    await c.sendMessage(jid, {
+                        image: buffer,
+                        caption:
+                            `🌟 *A Wild Pokémon Appeared!* 🌟\n` +
+                            `🆔 ID: ${wildData.id}\n` +
+                            `🔥 Types: ${wildData.types.map(cap).join(', ')}\n` +
+                            `🔹 Level: ${wildData.level}\n\n` +
+                            `[Use *!catch ${wildData.name}* to catch it!]`,
+                    });
+                    sent++;
+                } catch (e) { console.error('[Admin/spawn] send:', e.message); }
+            }
+
+            res.json({ ok: true, pokemon: wildData.name, level: wildData.level, sent });
+        } catch (e) { res.json({ ok: false, error: e.message }); }
+    });
+
+    // ── POST /api/admin/give-coins ────────────────────────────────────────
+    app.post('/api/admin/give-coins', adminAuth, async (req, res) => {
+        try {
+            const { jid: rawJid, coins } = req.body || {};
+            const jid = toJid(rawJid);
+            if (!jid || typeof coins !== 'number' || isNaN(coins)) {
+                return res.json({ ok: false, error: 'jid and coins (number) required' });
+            }
+            const EconomyModel = require('./database/economy')();
+            const doc = await EconomyModel.findOrCreate({ userId: jid });
+            doc.gem = (doc.gem || 0) + Math.round(coins);
+            await doc.save();
+            res.json({ ok: true, jid, newBalance: doc.gem });
+        } catch (e) { res.json({ ok: false, error: e.message }); }
+    });
+
+    // ── POST /api/admin/give-item ─────────────────────────────────────────
+    app.post('/api/admin/give-item', adminAuth, async (req, res) => {
+        try {
+            const { jid: rawJid, itemId, quantity } = req.body || {};
+            const jid = toJid(rawJid);
+            if (!jid || !itemId || typeof quantity !== 'number' || isNaN(quantity)) {
+                return res.json({ ok: false, error: 'jid, itemId, and quantity (number) required' });
+            }
+            const qty = Math.round(quantity);
+            if (itemId === 'pokeball') {
+                // pokeball lives in the economy table
+                const EconomyModel = require('./database/economy')();
+                const doc = await EconomyModel.findOrCreate({ userId: jid });
+                doc.pokeball = Math.max(0, (doc.pokeball || 0) + qty);
+                await doc.save();
+                res.json({ ok: true, jid, itemId, newQty: doc.pokeball });
+            } else {
+                // all other items → inventory KV table, key: jid_itemId
+                const SQLiteKV = require('./database/kv');
+                const inv  = new SQLiteKV('inventory');
+                const key  = `${jid}_${itemId}`;
+                const cur  = inv.get(key);
+                const next = Math.max(0, (typeof cur === 'number' ? cur : 0) + qty);
+                inv.set(key, next);
+                res.json({ ok: true, jid, itemId, newQty: next });
+            }
+        } catch (e) { res.json({ ok: false, error: e.message }); }
+    });
+
+    // ── POST /api/admin/heal-party ────────────────────────────────────────
+    app.post('/api/admin/heal-party', adminAuth, (req, res) => {
+        try {
+            const jid = toJid(req.body?.jid);
+            if (!jid) return res.json({ ok: false, error: 'jid required' });
+            const c = _client;
+            if (!c) return res.json({ ok: false, error: 'Bot not connected' });
+
+            const party = c.poke?.get(`${jid}_Party`);
+            if (!Array.isArray(party) || !party.length) {
+                return res.json({ ok: false, error: 'No party found for this trainer' });
+            }
+
+            const healed = party.map(p => ({
+                ...p,
+                hp:    p.maxHp  ?? p.hp,
+                moves: Array.isArray(p.moves)
+                    ? p.moves.map(m => ({ ...m, pp: m.maxPp ?? m.pp }))
+                    : p.moves,
+            }));
+
+            c.poke.set(`${jid}_Party`, healed);
+            res.json({ ok: true, jid, count: healed.length, pokemon: healed.map(p => p.name) });
+        } catch (e) { res.json({ ok: false, error: e.message }); }
     });
 
     // ── SPA fallback ──────────────────────────────────────────────────────

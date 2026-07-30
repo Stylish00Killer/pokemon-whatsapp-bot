@@ -21,6 +21,7 @@
     "node-cron": "^3.0.2",
     "pino": "^8.14.1",
     "pokenode-ts": "^1.20.0",
-    "qr-image": "^3.2.0"
+    "qr-image": "^3.2.0",
+    "workerpool": "^10.0.3"
   }
 }

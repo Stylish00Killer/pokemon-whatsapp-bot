@@ -84,6 +84,7 @@ module.exports = async function fightHandler({ client, msg, from, sender, args, 
 
     // ── Wild fainted ──────────────────────────────────────────────────────────
     if (wild.hp <= 0) {
+        clearTimeout(session.ttlTimer);
         pveSessions.delete(key);
 
         const expGain = Math.round(wild.exp / 5);
@@ -110,7 +111,7 @@ module.exports = async function fightHandler({ client, msg, from, sender, args, 
         if (leveledUp) {
             await delay(2000);
             const M = { from, sender };
-            utils.handlePokemonStats(client, M, player, false, 'player1', sender);
+            await utils.handlePokemonStats(client, M, player, false, 'player1', sender);
         }
         return;
     }
@@ -153,6 +154,7 @@ module.exports = async function fightHandler({ client, msg, from, sender, args, 
 
     // ── Player fainted ────────────────────────────────────────────────────────
     if (player.hp <= 0) {
+        clearTimeout(session.ttlTimer);
         pveSessions.delete(key);
         const party = client.poke.get(`${sender}_Party`) || [];
         const idx   = party.findIndex(p => p.tag === player.tag);

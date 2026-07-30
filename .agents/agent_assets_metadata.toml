@@ -1,0 +1,26 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "EQ7MDwHeeas5yOQYZzfYF"
+uri = "file://eve-bot/test-renders/battle.png"
+type = "image"
+title = "Battle Scene — Bulbasaur vs Charizard"
+
+[[outputs]]
+id = "5kR710EOMF0ehT8nkccrY"
+uri = "file://eve-bot/test-renders/wild-pikachu.png"
+type = "image"
+title = "Wild Spawn Card — Pikachu"
+
+[[outputs]]
+id = "rdpwCxdQKfAW7XuwNpFy2"
+uri = "file://eve-bot/test-renders/wild-mewtwo.png"
+type = "image"
+title = "Wild Spawn Card — Mewtwo"
+
+[[outputs]]
+id = "QKVoUsPJ0TnK_oqqbOGg3"
+uri = "file://eve-bot/test-renders/wild-eevee.png"
+type = "image"
+title = "Wild Spawn Card — Eevee"

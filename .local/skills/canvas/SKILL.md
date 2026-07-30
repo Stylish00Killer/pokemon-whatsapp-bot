@@ -189,7 +189,8 @@ Create a shapeId once — creating an existing shapeId fails. Use `update` for a
         "componentPath": { "anyOf": [{ "type": "string" }, { "type": "null" }], "default": null, "description": "New component path for iframe shapes." },
         "componentName": { "anyOf": [{ "type": "string" }, { "type": "null" }], "default": null, "description": "New component name for iframe shapes." },
         "componentProps": { "anyOf": [{ "additionalProperties": true, "type": "object" }, { "type": "null" }], "default": null, "description": "Props to merge into iframe shape props." },
-        "state": { "anyOf": [{ "enum": ["building", "modifying", "live"], "type": "string" }, { "type": "null" }], "default": null, "description": "New lifecycle state for iframe shapes. Set 'modifying' before edits, 'live' when ready." }
+        "state": { "anyOf": [{ "enum": ["building", "modifying", "live"], "type": "string" }, { "type": "null" }], "default": null, "description": "New lifecycle state for iframe shapes. Set 'modifying' before edits, 'live' when ready." },
+        "suggestedActions": { "type": "array", "maxItems": 3, "items": { "type": "object", "additionalProperties": false, "properties": { "content": { "type": "object", "additionalProperties": false, "properties": { "kind": { "const": "prompt" }, "prompt": { "type": "string", "minLength": 1, "maxLength": 1000 } }, "required": ["kind", "prompt"] }, "label": { "type": "string", "minLength": 1, "maxLength": 60 }, "category": { "type": "string", "minLength": 1, "maxLength": 60 }, "id": { "type": "string", "minLength": 1, "maxLength": 128 } }, "required": ["content", "label"] }, "description": "For design/mockup iframe shapes: 3 follow-up suggestion cards. Omit the field entirely when unused -- do NOT send null. Required when taking a design frame to 'live'. Each entry has hidden execution content {kind:'prompt',prompt}, a required user-facing label that briefly describes the change in one sentence, an optional non-empty freeform category, and an authored id." }
       },
       "required": ["shapeType"]
     }
@@ -319,6 +320,8 @@ Embed live web content. Use the `state` field to manage the iframe lifecycle:
 - `"live"` -- Set when the component is ready to display. URL is **required** in this state.
 
 
+> **REQUIRED for every design/mockup iframe.** Any agent that takes a design/mockup iframe to `state: "live"` MUST attach 3 `suggestedActions` in the **same** `applyCanvasActions` update that sets `"live"` — never "I'll add them after". This applies to every live transition: the first frame, every fan-out variant, and any frame spawned from a clicked suggestion. They render as one-click ghost-frame cards beside the live frame; clicking one sends that prompt with the frame as context. A live design frame with no `suggestedActions` is a bug. The one exception is non-design iframes that embed a running app/artifact, which do not take `suggestedActions`. Author them with **design-exploration** thinking — see the boxed rules below.
+
 
 Create the iframe immediately with `state: "building"`, then update it to `"live"` once the URL is available. Use `create-auto` unless you need exact coordinates:
 
@@ -340,6 +343,8 @@ await applyCanvasActions({ actions: [
 // 2. ... build the component / start the server ...
 
 // 3. Update to live once the URL is ready.
+//    For a design/mockup frame, attach 3 suggestedActions in THIS same
+//    update (omit them only for live app/artifact embeds).
 await applyCanvasActions({ actions: [
   {
     type: "update",
@@ -347,12 +352,41 @@ await applyCanvasActions({ actions: [
     updates: {
       shapeType: "iframe",
       state: "live",
-      url: "https://<resolved-domain>.replit.dev"
+      url: "https://<resolved-domain>.replit.dev",
+      suggestedActions: [
+        { id: "checkout-page", label: "Turn this pricing overview into a focused checkout flow", category: "new page / flow extension", content: { kind: "prompt", prompt: "Create a new frame that expands this pricing overview into a complete checkout flow with order details, payment fields, and a clear confirmation action" } },
+        { id: "dark-editorial", label: "Reimagine this page as a bold dark editorial spread", category: "extreme reimagining", content: { kind: "prompt", prompt: "Create a new variant of this design as a bold, editorial dark-mode magazine spread" } },
+        { id: "cinematic-hero", label: "Give the hero richer and more cinematic imagery", category: "imagery refresh", content: { kind: "prompt", prompt: "Generate a new variant with a moodier, cinematic hero using dramatic lighting and a more immersive composition" } }
+      ]
     }
   }
 ] });
 ```
 
+
+### Authoring `suggestedActions` (think like design-exploration)
+
+Each `suggestedAction` is an object: `content` (`{ kind: "prompt", prompt }` — the hidden execution prompt sent verbatim when clicked), a required user-facing `label` (the card body, ≤60 chars), an optional freeform `category` style hint, and an authored short `id` slug (used for accept/dedup/telemetry). Apply the **design-exploration** skill's principles (`pkg/agent-skills/skills/design-exploration/SKILL.md`):
+
+- **Write each `label` as one brief sentence describing the concrete change to the selected frame.** The user sees the original frame beside this sentence, so summarize what the proposed variant will change. Do not use a short title or category-like phrase, and do not copy or expose the full execution prompt.
+- **Phrase each `content.prompt` as a self-contained "new frame/variant" request.** A clicked suggestion reaches the agent as an ordinary message with the source frame as selection context — nothing marks it as a branch — so the prompt must unambiguously ask for a NEW frame ("Create a new variant of this design that …", "Generate a new frame exploring …"), never wording that reads as an in-place edit of the selected frame ("make this …", "regenerate the hero …").
+- **Direct refinements to copy, never edit.** When a suggestion refines an existing component ("add a testimonial section"), the prompt must say to copy the source into a new component file and change the copy — e.g. "Create a new variant of this design, as a new component file (do not modify existing files), that adds …". Whoever executes the suggestion may be running beside other agents that are reading the same source file.
+- **Comprehend before generating** — read the frame's function, content, interaction, and visual structure first; never jump straight to three reskins.
+- **Each suggestion is a distinct design hypothesis** — a meaningfully different answer to "what could this be?", not the same idea three times.
+- **Pick meaningful variation axes** (structural / content / conceptual / behavioral / aesthetic). Default to **≥2 of 3 being net-new big swings** — a new page/screen the design implies, or an extreme reimagining — with at most one incremental refinement.
+- **Account for sibling frames** so suggestions across the canvas diverge instead of colliding.
+
+### Acting on a clicked suggestion is non-destructive
+
+When a user clicks a ghost-frame suggestion (or otherwise asks to explore a variant/follow-up of an existing frame), the result is a **new** design frame — never an in-place overwrite of the frame the suggestion came from. The source frame is the user's reference point; leave its `url`, `componentName`, `componentPath`, and contents untouched.
+
+- Create a new iframe (its own `shapeId`, `state: "building"` → `"live"`) for the explored direction and place it beside the source. Do **not** issue an `update` that swaps the source frame's `url`/component to the new design.
+- The same rule applies at the file level: never modify the source frame's component file — copy it into a new file for the new variant. Editing it in place changes what the source frame renders and races any parallel run reading the same file.
+- Only update a frame's content in place when the user explicitly asks to modify *that* frame (e.g. "make this card blue"). A suggestion click or "what else could this be?" is exploration, not modification.
+
+### Reserved building frames are off-limits
+
+A `state: "building"` iframe you did **not** create this turn is a reserved slot — the system placed it (e.g. from a clicked ghost-frame suggestion) so the next agent loop has somewhere to build. Never delete one as "stray"/leftover cleanup: fill it with an `update` if it's the slot for your current work, otherwise leave it alone. You may only delete building placeholders **you** created earlier in this same turn and chose not to fill.
 
 
 **Note: `create` and `update` actions have different payload structures.**
@@ -369,6 +403,7 @@ To get the URL for a Replit dev server, run `echo $REPLIT_DOMAINS` in the shell 
 - `componentPath` -- File path shown in the title bar (metadata label only).
 - `componentName` -- Display name shown in the title bar (metadata label only).
 - `componentProps` -- Extra props dict merged into shape props.
+- `suggestedActions` -- Up to 3 follow-up suggestion objects shown as one-click ghost-frame cards beside a live design frame. Required when taking a design/mockup frame to `"live"` (see the boxed rule above); set them in the same update that sets `"live"`.
 
 **To embed individual React components** (not just the full app), use the **mockup-sandbox** skill. It sets up a vite preview server where each component gets its own route at `/preview/{folder}/{ComponentName}`. Embed these URLs as iframe shapes. For example, a pricing card component at `mockup/client/src/components/mockups/pricing/Card.tsx` would be embedded with URL `https://<domain>:8000/preview/pricing/Card`.
 
@@ -474,6 +509,9 @@ Pan and zoom the user's canvas viewport to center on specific shapes. **Only cal
 ## Iframe Rules & Gotchas
 
 - **Use `state` for lifecycle** -- Set `"building"` on create (URL optional), `"modifying"` before edits, `"live"` when ready (URL required).
+- **Design frames need `suggestedActions` to go `"live"`** -- whoever flips a design/mockup frame to `"live"` attaches 3 in that same update; a live design frame without them is a bug. Live app/artifact embeds are exempt.
+- **Exploring a suggestion creates a new frame** -- acting on a clicked suggested action (or any "iterate on this frame" / "what else could this be?" request) creates a NEW frame beside the source; never overwrite the source frame's `url`/contents in place. In-place `update` is only for explicit "modify this frame" requests.
+- **Never delete a building frame you didn't create** -- a prior-turn `state: "building"` iframe is a reserved slot for pending work; fill it or leave it. Only delete building placeholders you created this turn.
 - **URL must be `https`** -- `http` and `about:blank` are rejected.
 - **Resolve the domain first** -- run `echo $REPLIT_DOMAINS` in the shell, then build the URL from the result. Never pass a literal template string as the URL.
 - **Port rules:** no port suffix = port 5000 (main app). For other servers, append `:<port>`.

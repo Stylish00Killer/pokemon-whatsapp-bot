@@ -89,7 +89,7 @@ module.exports = async function catchHandler({ client, msg, from, sender, args, 
         lead.level      = newLevel;
         lead.displayExp = lead.exp - utils.calculatePokeExp(newLevel);
         const M = { from, sender };
-        utils.handlePokemonStats(client, M, lead, false, 'player1', sender);
+        await utils.handlePokemonStats(client, M, lead, false, 'player1', sender);
     }
 
     const updatedParty = client.poke.get(`${sender}_Party`) || [];

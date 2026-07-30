@@ -5,7 +5,8 @@ import Layout from './components/Layout.jsx';
 const Overview = lazy(() => import('./pages/Overview.jsx'));
 const Players  = lazy(() => import('./pages/Players.jsx'));
 const Battles  = lazy(() => import('./pages/Battles.jsx'));
-const Logs     = lazy(() => import('./pages/Logs.jsx'));
+const Groups   = lazy(() => import('./pages/Groups.jsx'));
+const Admin    = lazy(() => import('./pages/Admin.jsx'));
 
 const Spinner = () => (
   <div className="loading-center">
@@ -21,7 +22,8 @@ export default function App() {
           <Route index           element={<Overview />} />
           <Route path="players"  element={<Players />} />
           <Route path="battles"  element={<Battles />} />
-          <Route path="logs"     element={<Logs />} />
+          <Route path="groups"   element={<Groups />} />
+          <Route path="admin"    element={<Admin />} />
           <Route path="*"        element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

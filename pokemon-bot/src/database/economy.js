@@ -46,7 +46,26 @@ function createEconomyModel() {
             lastDaily = excluded.lastDaily
     `);
 
-    const stmtFind = db.prepare('SELECT * FROM economy WHERE userId = ?');
+    const stmtFind    = db.prepare('SELECT * FROM economy WHERE userId = ?');
+    const stmtGetGem  = db.prepare('SELECT gem FROM economy WHERE userId = ?');
+    const stmtSetGem  = db.prepare('UPDATE economy SET gem = ? WHERE userId = ?');
+
+    /**
+     * Atomically transfer gems from one player to another.
+     * computeGold(loserGems, winnerGems) → integer gold amount.
+     * Fully synchronous — better-sqlite3 transaction, no await needed.
+     * Returns the actual gold amount transferred.
+     */
+    const _transferTx = db.transaction((winnerId, loserId, computeGold) => {
+        const wRow  = stmtGetGem.get(winnerId);
+        const lRow  = stmtGetGem.get(loserId);
+        const wGems = wRow ? wRow.gem : 0;
+        const lGems = lRow ? lRow.gem : 0;
+        const gold  = Math.max(0, computeGold(lGems, wGems));
+        if (wRow) stmtSetGem.run(wGems + gold, winnerId);
+        if (lRow) stmtSetGem.run(Math.max(0, lGems - gold), loserId);
+        return gold;
+    });
 
     const defaults = (data) => ({
         userId:    data.userId    ?? null,
@@ -85,6 +104,21 @@ function createEconomyModel() {
             const doc = new EconomyModel(data);
             await doc.save();
             return doc;
+        }
+
+        /**
+         * Atomically transfer gems from loser → winner inside a single
+         * better-sqlite3 transaction (no race conditions between concurrent
+         * battles ending at the same time).
+         *
+         * computeGold(loserGems, winnerGems) → number
+         *   Called inside the transaction with current DB values so the
+         *   calculation is always based on up-to-date balances.
+         *
+         * Returns the gold amount actually transferred.
+         */
+        static atomicTransfer(winnerId, loserId, computeGold) {
+            return _transferTx(winnerId, loserId, computeGold);
         }
     }
 

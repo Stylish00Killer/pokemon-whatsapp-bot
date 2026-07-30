@@ -24,6 +24,17 @@ module.exports = async function challengeHandler({ client, msg, from, sender, ar
         if (!data || data.challengee !== sender)
             return client.sendMessage(from, { text: '❌ No one challenged you.' }, { quoted: msg });
 
+        if (client.pokemonBattlePlayerMap.has(sender))
+            return client.sendMessage(from, { text: "❌ You're already in a battle." }, { quoted: msg });
+
+        if (client.pokemonBattlePlayerMap.has(data.challenger)) {
+            pokemonChallengeResponse.delete(from);
+            return client.sendMessage(from, {
+                text: `❌ *@${data.challenger.split('@')[0]}* is now in another battle. Challenge cancelled.`,
+                mentions: [data.challenger],
+            }, { quoted: msg });
+        }
+
         pokemonChallengeResponse.delete(from);
 
         const acceptorParty    = (client.poke.get(`${sender}_Party`) || []).filter(p => p.hp > 0);
@@ -92,6 +103,9 @@ module.exports = async function challengeHandler({ client, msg, from, sender, ar
     }
 
     // ── New challenge ─────────────────────────────────────────────────────────
+    if (client.pokemonBattlePlayerMap.has(sender))
+        return client.sendMessage(from, { text: "❌ You're already in a battle." }, { quoted: msg });
+
     if (client.pokemonBattleResponse.has(from))
         return client.sendMessage(from, { text: '❌ A battle is already ongoing in this group.' }, { quoted: msg });
 

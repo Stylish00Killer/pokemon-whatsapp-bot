@@ -8,8 +8,12 @@
 const axios      = require('axios');
 const { join }   = require('path');
 const { readFile } = require('fs').promises;
-const Canvas     = require('canvas');
+const workerpool = require('workerpool');
 const { MoveClient } = require('pokenode-ts');
+
+// One shared pool — workers are reused across calls.
+const _canvasPool = workerpool.pool(join(__dirname, 'workers', 'canvas.worker.js'), { maxWorkers: 2 });
+process.on('exit', () => _canvasPool.terminate());
 const delay      = (ms) => new Promise(r => setTimeout(r, ms));
 const maxLevel   = 100;
 
@@ -177,84 +181,17 @@ const getPokemonWeaknessAndStrongTypes = async (...types) => {
 };
 
 /**
- * Draw a Pokémon battle scene using canvas (ported from eve-bot).
+ * Draw a Pokémon battle scene in a worker thread (non-blocking).
+ * Returns a Buffer or null on failure.
  */
 const drawPokemonBattle = async (data) => {
     try {
-        const background  = await Canvas.loadImage(await readFile(join(__dirname, '..', 'assets', 'Images', 'battle.png')));
-        const pokeball    = await Canvas.loadImage(await readFile(join(__dirname, '..', 'assets', 'Images', 'pokeball.png')));
-        const greyPokeball = await Canvas.loadImage(await readFile(join(__dirname, '..', 'assets', 'Images', 'greyPokeball.png')));
-
-        const canvas = Canvas.createCanvas(background.width, background.height);
-        const ctx    = canvas.getContext('2d');
-        ctx.drawImage(background, 0, 0);
-
-        const pokemonSize = 128;
-        const boxPadding  = 12;
-        const styles = {
-            player1: { pokemon: { x: 100 - pokemonSize / 2, y: 138, size: 128, clipY: 45 }, box: { x: 25, y: 60 } },
-            player2: { pokemon: { x: 300 - pokemonSize / 2, y: 60,  size: 100, clipY: 0  }, box: { x: 230, y: 150 } },
-        };
-
-        const spriteBase = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon';
-
-        for (let i = 0; i < 2; i++) {
-            const key    = `player${i + 1}`;
-            const style  = styles[key];
-            const player = data[key];
-            const spriteUrl = i === 1
-                ? `${spriteBase}/${player.activePokemon.id}.png`
-                : `${spriteBase}/back/${player.activePokemon.id}.png`;
-
-            if (player.activePokemon.hp > 0) {
-                const pokemonImage = await Canvas.loadImage(spriteUrl);
-                const { x, y, size, clipY } = style.pokemon;
-                ctx.drawImage(pokemonImage, 1, 1, 96, 96 - clipY, x, y, size, size - clipY);
-            }
-
-            const boxCanvas = Canvas.createCanvas(150, 60);
-            const boxCtx    = boxCanvas.getContext('2d');
-            boxCtx.fillStyle   = 'rgb(24,24,24)';
-            boxCtx.strokeStyle = 'rgb(36,36,36)';
-            roundRect(boxCtx, 0, 0, 150, 60, 16);
-            boxCtx.font      = 'bold 12px Sans-Serif';
-            boxCtx.fillStyle = '#ffffff';
-            boxCtx.textAlign = 'left';
-            boxCtx.fillText(
-                `${capitalize(player.activePokemon.name)}${player.activePokemon.name.length <= 6 ? '\t\t' : '\t'}Lv. ${player.activePokemon.level}`,
-                boxPadding, boxCanvas.height - boxPadding
-            );
-            boxCtx.textAlign = 'right';
-            boxCtx.fillText(`HP: ${player.activePokemon.hp} / ${player.activePokemon.maxHp}`, 150 - boxPadding, boxPadding * 2);
-
-            const pbSize = 7, pbGap = 2;
-            const len = Math.min(player.party.length, 6);
-            for (let j = 0; j < len; j++) {
-                const pbX = boxPadding + (pbSize + pbGap) * j;
-                boxCtx.drawImage(player.party[j].hp > 0 ? pokeball : greyPokeball, pbX, boxPadding, pbSize, pbSize);
-            }
-            ctx.drawImage(boxCanvas, style.box.x, style.box.y);
-        }
-        return canvas.toBuffer();
+        const base64 = await _canvasPool.exec('drawPokemonBattle', [data]);
+        if (!base64) return null;
+        return Buffer.from(base64, 'base64');
     } catch {
         return null;
     }
-};
-
-const roundRect = (ctx, x, y, w, h, r = 5) => {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
 };
 
 /**
@@ -269,7 +206,8 @@ const handlePokemonStats = async (client, M, pkmn, inBattle, player, user) => {
     const party = (await client.poke.get(`${user}_Party`)) || [];
     const i     = party.findIndex(x => x.tag === pkmn.tag);
     const { hp, speed, defense, attack } = await getPokemonStats(pkmn.id, pkmn.level);
-    pkmn.hp      += hp - pkmn.maxHp;
+    // Clamp so a large defense stat on the new level never drives current HP below 0.
+    pkmn.hp      = Math.max(0, pkmn.hp + (hp - pkmn.maxHp));
     pkmn.maxHp = hp; pkmn.maxAttack = attack; pkmn.maxSpeed = speed; pkmn.maxDefense = defense;
     pkmn.attack = attack; pkmn.defense = defense; pkmn.speed = speed;
     party[i] = pkmn;
@@ -356,7 +294,9 @@ const handlePokemonEvolution = async (client, M, pkmn, inBattle, player, user) =
             pkmn.image = pData.sprites.other['official-artwork'].front_default;
             pkmn.name  = pData.name;
             const { hp, attack, defense, speed } = await getPokemonStats(pkmn.id, pkmn.level);
-            pkmn.hp += hp - pkmn.maxHp; pkmn.maxHp = hp; pkmn.maxAttack = attack; pkmn.maxSpeed = speed; pkmn.maxDefense = defense;
+            // Clamp HP so evolution stat gain never produces negative current HP.
+            pkmn.hp = Math.max(0, pkmn.hp + (hp - pkmn.maxHp));
+            pkmn.maxHp = hp; pkmn.maxAttack = attack; pkmn.maxSpeed = speed; pkmn.maxDefense = defense;
             pkmn.attack = attack; pkmn.defense = defense; pkmn.speed = speed;
             if (pkmn.tag === '0') await client.poke.set(`${user}_Companion`, pData.name);
             if (inBattle) {
@@ -368,12 +308,20 @@ const handlePokemonEvolution = async (client, M, pkmn, inBattle, player, user) =
             }
             party[i] = pkmn;
             await client.poke.set(`${user}_Party`, party);
-            const buf = await getBuffer(pkmn.image);
-            await client.sendMessage(M.from, {
-                image: buf,
-                caption: `🎉 *@${user.split('@')[0]}*'s *${capitalize(pkmn.name.replace(evolved, ''))}* evolved into *${capitalize(evolved)}*!`,
-                mentions: [user],
-            });
+            // getBuffer can fail if the sprite URL is unavailable — fall back to text.
+            const buf = await getBuffer(pkmn.image).catch(() => null);
+            if (buf) {
+                await client.sendMessage(M.from, {
+                    image: buf,
+                    caption: `🎉 *@${user.split('@')[0]}*'s *${capitalize(pkmn.name.replace(evolved, ''))}* evolved into *${capitalize(evolved)}*!`,
+                    mentions: [user],
+                });
+            } else {
+                await client.sendMessage(M.from, {
+                    text: `🎉 *@${user.split('@')[0]}*'s Pokémon evolved into *${capitalize(evolved)}*!`,
+                    mentions: [user],
+                });
+            }
         }, 60 * 1000);
     } catch (e) {
         console.error('[handlePokemonEvolution]', e.message);

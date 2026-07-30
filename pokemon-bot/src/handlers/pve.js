@@ -34,7 +34,19 @@ module.exports = async function pveHandler({ client, msg, from, sender, isGroup 
         const wild   = await spawnWild();
         const player = party.find(p => p.hp > 0);
 
-        pveSessions.set(sessionKey(from, sender), { player, wild, groupJid: from, senderJid: sender });
+        // Auto-expire abandoned sessions after 10 minutes so the Map never
+        // grows unboundedly when players start a PVE fight and walk away.
+        const key = sessionKey(from, sender);
+        const ttlTimer = setTimeout(() => {
+            if (pveSessions.has(key)) {
+                pveSessions.delete(key);
+                client.sendMessage(from, {
+                    text: `⏰ Your PVE battle timed out — *${utils.capitalize(wild.name)}* ran away.`,
+                }, { quoted: msg }).catch(() => {});
+            }
+        }, 10 * 60 * 1000);
+
+        pveSessions.set(key, { player, wild, groupJid: from, senderJid: sender, ttlTimer });
 
         const buffer = await utils.getBuffer(wild.image).catch(() => null);
         const caption =

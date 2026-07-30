@@ -86,15 +86,11 @@ async function handleForfeit(client, msg, from, sender) {
     const loser  = sender;
     const winner = data.player1.user === sender ? data.player2.user : data.player1.user;
 
-    const econLoser  = await client.econ.findOne({ userId: loser });
-    const econWinner = await client.econ.findOne({ userId: winner });
-
-    const loserWallet = econLoser ? econLoser.gem : 0;
-    const amount      = loserWallet > 5000 ? 4500 : loserWallet >= 250 ? 250 : loserWallet;
-    const gold        = Math.floor(Math.random() * amount);
-
-    if (econLoser)  { econLoser.gem  -= gold; await econLoser.save(); }
-    if (econWinner) { econWinner.gem += gold; await econWinner.save(); }
+    // Atomic transaction — no race condition when two battles end concurrently.
+    const gold = client.econ.atomicTransfer(winner, loser, (loserGems) => {
+        const amount = loserGems > 5000 ? 4500 : loserGems >= 250 ? 250 : loserGems;
+        return Math.floor(Math.random() * (amount || 1));
+    });
 
     client.pokemonBattleResponse.delete(from);
 
@@ -314,7 +310,8 @@ const handleBattles = async (client, msg, from) => {
                     await client.sendMessage(from, { text: `It's ${effectiveness === 'w' ? 'not ' : 'super '}effective!`, mentions: [current.user] });
                 }
 
-                pkmn.hp -= calcDmg;
+                // Clamp to 0 before storing — negative HP must never reach the DB.
+                pkmn.hp = Math.max(0, pkmn.hp - calcDmg);
                 await client.sendMessage(from, {
                     text: `*@${current.user.split('@')[0]}*'s *${utils.capitalize(pokemon.name)}* dealt *${calcDmg}* damage to *@${opponent.user.split('@')[0]}*'s *${utils.capitalize(pkmn.name)}*`,
                     mentions: [current.user, opponent.user],
@@ -472,7 +469,9 @@ const handleBattleStats = async (client, msg, from, exp, user, pkmn, player) => 
             pkmn.displayExp = pkmn.exp - utils.calculatePokeExp(newLevel);
             // M-shim for handlePokemonStats
             const M = { from, sender: user };
-            utils.handlePokemonStats(client, M, pkmn, true, player, user);
+            // Await so stat updates and party writes complete before the caller
+            // reads back the updated Pokémon from storage.
+            await utils.handlePokemonStats(client, M, pkmn, true, player, user);
         }
 
         const data = client.pokemonBattleResponse.get(from);

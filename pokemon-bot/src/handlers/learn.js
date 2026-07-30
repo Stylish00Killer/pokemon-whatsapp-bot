@@ -23,7 +23,9 @@ module.exports = async function learnHandler({ client, msg, from, sender, args }
 
     const { data: pkmn, move: newMove } = pending;
     let party = client.poke.get(`${sender}_Party`) || [];
-    const i   = party.findIndex(x => x.name === pkmn.name && x.level === pkmn.level);
+    // Find by unique tag — matching name+level would pick the wrong Pokémon
+    // if the trainer owns multiple of the same species at the same level.
+    const i   = party.findIndex(x => x.tag === pkmn.tag);
 
     client.pokemonMoveLearningResponse.delete(`${from}${sender}`);
 

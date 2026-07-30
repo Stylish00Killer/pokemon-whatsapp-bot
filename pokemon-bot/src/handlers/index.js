@@ -32,6 +32,8 @@ const COMMANDS = {
     // Legacy simple PVP (fight sub-command from old engine)
     'pvp':              require('./pvp'),
     'fight':            require('./fight'),
+    // Help
+    'help':             require('./help'),
 };
 
 /**

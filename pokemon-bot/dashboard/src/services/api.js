@@ -9,13 +9,28 @@ async function req(path, opts = {}) {
   return r.json();
 }
 
+function post(path, body = {}) {
+  const adminKey = typeof localStorage !== 'undefined'
+    ? (localStorage.getItem('adminKey') || '')
+    : '';
+  return req(path, {
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: adminKey ? { 'x-admin-key': adminKey } : {},
+  });
+}
+
 export const api = {
+  // ── Read endpoints ──────────────────────────────────────────────────────
   getStats:   () => req('/api/stats'),
   getQR:      () => req('/api/qr'),
-  getLogs:    () => req('/api/logs'),
   getPlayers: () => req('/api/players'),
   getBattles: () => req('/api/battles'),
+  getGroups:  () => req('/api/groups'),
 
-  /** Returns an EventSource for the live log SSE stream. */
-  logsStream: () => new EventSource('/api/logs'),
+  // ── Admin write endpoints ───────────────────────────────────────────────
+  adminSpawn:     (body) => post('/api/admin/spawn',       body),
+  adminGiveCoins: (body) => post('/api/admin/give-coins',  body),
+  adminGiveItem:  (body) => post('/api/admin/give-item',   body),
+  adminHealParty: (body) => post('/api/admin/heal-party',  body),
 };

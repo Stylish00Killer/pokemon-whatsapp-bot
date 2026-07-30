@@ -1,6 +1,6 @@
 ---
 name: query-integration-data
-description: Query and modify data in any connected integration (Linear, GitHub, HubSpot, Slack, Google services, etc.) or connected data warehouse (Databricks, Snowflake, BigQuery). Use listConnections() in the codeExecution sandbox to get credentials, then call APIs directly. Supports read operations (queries, counts, exports) and write operations (create, update, delete).
+description: Query and modify data in any connected integration (Linear, GitHub, HubSpot, Slack, Google services, etc.) or connected data warehouse (Databricks, Snowflake, BigQuery). Use listConnections() in the codeExecution sandbox to get a connection, then call its API via getClient() or proxyFetch(). Supports read operations (queries, counts, exports) and write operations (create, update, delete).
 ---
 
 # Query Integration Data Skill
@@ -45,7 +45,7 @@ Code runs inline in the `codeExecution` sandbox -- no script files are needed.
    -- status added     -- EXECUTE -- OUTPUT
    -- status not_added
       or not_setup     -- CONNECT (via `integrations` skill) -- EXECUTE -- OUTPUT
-2. EXECUTE    -- listConnections(connectorName) inside "use impure" for credentials, then call the API
+2. EXECUTE    -- listConnections(connectorName) inside "use impure", then call the API via getClient() or proxyFetch()
 ```
 
 - **SEARCH**: Call `searchIntegrations({ query })` (see "Calling `searchIntegrations`" below for the exact params and result shape). Its `status` field is the source of truth for whether a connection needs setup -- do NOT use `listConnections().length` to decide this (see "Deciding whether setup is needed" below).
@@ -53,7 +53,7 @@ Code runs inline in the `codeExecution` sandbox -- no script files are needed.
   - `not_added` -- authorized at the account level but not bound to this Repl. Bind it via the `integrations` skill, then EXECUTE.
   - `not_setup` -- not authorized yet. Set it up via the `integrations` skill (`ProposeIntegration` drives OAuth), then EXECUTE.
 - **CONNECT** (only when status is `not_setup` or `not_added`): Use `searchIntegrations`, `ProposeIntegration`, and `addIntegration` to set up the connection. See the `integrations` skill for the full lifecycle details.
-- **EXECUTE**: This is the **only** step that calls `listConnections`, and only call it because you are about to use the credentials. Call `listConnections(connectorName)` inside a `"use impure"` function to fetch the `settings`, build your client, and run the API call in the same `codeExecution` block. Never call `listConnections` to "check" or "probe" a connection -- if you are not about to use the credentials, do not call it.
+- **EXECUTE**: This is the **only** step that calls `listConnections`, and only call it because you are about to call the API. Call `listConnections(connectorName)` inside a `"use impure"` function, then make the API call in the same `codeExecution` block via `getClient()` or `proxyFetch()`. Never call `listConnections` to "check" or "probe" a connection -- if you are not about to call the API, do not call it.
 - **OUTPUT**: Return the answer or confirmation to the user.
 
 > **Call `listConnections` only when you need the credentials.** It is a credential-fetch call, not a status check. The connect/no-connect decision belongs to `searchIntegrations` `status`; `listConnections` is for the EXECUTE step alone, when you are about to make the API call.
@@ -119,12 +119,50 @@ console.log(result);
 Each connection object has:
 
 - `id`, `connectorConfigId`, `status`, `displayName`, `metadata`, `environment`
-- `settings` -- credentials dict (access tokens, API keys, etc.)
-- `getClient()` -- returns an initialized SDK client for supported connectors
+- `hasClient` -- `true` when this connector has a built-in SDK client, i.e. when `getClient()` is usable
+- `getClient()` -- returns an initialized SDK client; **throws** when `hasClient` is `false`
+- `proxyFetch(path, init?)` -- `fetch`-like call to the connector's API through the Replit connector proxy; the credential is injected server-side
 
-Credential fields are available by direct property access, e.g. `conn.settings.access_token` or `conn.settings.api_key`. You may inspect `Object.keys(conn.settings)` to see which credential fields exist, but do **not** log, return, spread, or serialize the whole `settings` object. Use the credential value only to construct the API client or request headers, and return safe metadata/results instead.
+**Prefer, in order:** `getClient()` (only when `hasClient`) -> `proxyFetch()`. Never read credentials out of the connection -- the proxy injects them server-side.
 
-#### Resolving the connector slug
+Check `hasClient` first rather than calling `getClient()` to find out -- only a few connectors ship an SDK client, and on the rest `getClient()` throws:
+
+```javascript
+const conn = conns[0];
+if (conn.hasClient) {
+  const client = await conn.getClient();
+  // ... use the SDK client
+} else if (conn.proxyFetch) {
+  const res = await conn.proxyFetch('/path/relative/to/api/base');
+  // ... use the response
+}
+```
+
+`hasClient` only means an SDK client exists for this connector; building it can still fail (e.g. an expired credential).
+
+### `conn.proxyFetch(path, init?)` -- call the API without touching credentials
+
+`proxyFetch` sends the request through the Replit connector proxy, which forwards it to the connector's API base URL with this connection's credential injected server-side. Your code never sees the token:
+
+```javascript
+const result = await (async function() {
+  "use impure";
+  const conns = await listConnections('linear');
+  const res = await conns[0].proxyFetch('/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: '{ viewer { id name } }' }),
+  });
+  return await res.json();
+})();
+console.log(result);
+```
+
+- `path` is **relative to the connection's configured API base URL** (starting with `/`), including any query string. It is not the full URL from the provider's docs -- if the API base already ends in a version/root prefix (e.g. `https://tenant.example/rest/api/1.0`), do **not** repeat that prefix: use `/projects`, not `/rest/api/1.0/projects`. Do not pass a full URL and do not set auth headers -- the proxy adds the credential.
+- `init` supports `method`, `headers`, and `body` (string).
+- If `conn.proxyFetch` is not a function (container on an older pid2), fall back to `conn.settings` -- deprecated, being removed.
+
+### Resolving the connector slug
 
 `listConnections(connectorName)` is keyed on the **exact connector slug** (e.g. `google-sheet`, `linear`, `stripe`), filtered server-side. The slug is lowercase and often hyphenated, and it is **not** the `displayName` from `searchIntegrations` (`Google Sheets`) nor a reliable lowercasing of it. Passing the wrong slug returns `[]` -- the same shape as "no connection" -- so resolve the slug before concluding anything from an empty result:
 
@@ -455,7 +493,8 @@ console.log(`Deleted message ID abc123`);
 - **Search -- propose -- add** when status is `not_setup` or `not_added` (see `integrations` skill)
 - **All code runs in the `codeExecution` sandbox** -- no script files needed
 - **Use `console.log()`** to see output -- functions execute silently without it (but never log credentials)
-- **Prefer `conn.getClient()`** over importing an SDK — it returns an initialized client with no `await import` and no raw token handling.
+- **Prefer `conn.getClient()` when `conn.hasClient`** over importing an SDK — it returns an initialized client with no `await import` and no raw token handling. Otherwise use `conn.proxyFetch()`.
+- **Use `conn.proxyFetch(path, init)`** when there is no SDK client — the proxy injects the credential server-side, so your code never handles a token.
 - **State persists** across `codeExecution` calls -- reuse `conns`, clients, and extracted credentials instead of re-fetching (unless expired).
 - **Browse `public_documentation_link`** to understand the API before coding
 - **Ask clarifying questions** before write operations that need specific IDs or values

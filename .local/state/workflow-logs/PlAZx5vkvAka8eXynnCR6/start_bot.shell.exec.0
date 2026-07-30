@@ -1,0 +1,49 @@
+[1m[36m[39m[22m
+[1m[36m███████╗██╗   ██╗███████╗[39m[22m
+[1m[36m██╔════╝██║   ██║██╔════╝[39m[22m
+[1m[36m█████╗  ██║   ██║█████╗  [39m[22m
+[1m[36m██╔══╝  ╚██╗ ██╔╝██╔══╝  [39m[22m
+[1m[36m███████╗ ╚████╔╝ ███████╗[39m[22m
+[1m[36m╚══════╝  ╚═══╝  ╚══════╝[39m[22m
+[1m[37m[39m[22m
+[1m[37m  ⚡ EVE BOT  v1.0.0  —  Made by S00K[39m[22m
+[1m[37m[39m[22m
+[32m[SESSION] ✓ Restored 3496 file(s) from backup — no QR needed[39m
+[32m[DB]     SQLite connected[39m
+[32m[SERVER] Dashboard running on port 3000[39m
+[CARD] Spawn scheduler started (every 20 min).
+[38;2;255;255;0m[BOT]    Connecting to WhatsApp…[39m
+[32m[BOT]    ✓ Connected to WhatsApp[39m
+[36m[BOT]    Name   : Alice[39m
+[36m[BOT]    Prefix : -[39m
+[36m[BOT]    Mods   : 1[39m
+[1m[32m[39m[22m
+[1m[32m  ✅ Ready[39m[22m
+[1m[32m[39m[22m
+[36m[CMD]    40 commands loaded[39m
+[38;2;255;255;0m[BOT]    Reconnecting…[39m
+[32m[SESSION] ✓ Restored 3496 file(s) from backup — no QR needed[39m
+[32m[DB]     SQLite connected[39m
+[CARD] Spawn scheduler started (every 20 min).
+[38;2;255;255;0m[BOT]    Connecting to WhatsApp…[39m
+[32m[BOT]    ✓ Connected to WhatsApp[39m
+[36m[BOT]    Name   : Alice[39m
+[36m[BOT]    Prefix : -[39m
+[36m[BOT]    Mods   : 1[39m
+[1m[32m[39m[22m
+[1m[32m  ✅ Ready[39m[22m
+[1m[32m[39m[22m
+[36m[CMD]    40 commands loaded[39m
+[38;2;255;255;0m[BOT]    Reconnecting…[39m
+[32m[SESSION] ✓ Restored 3496 file(s) from backup — no QR needed[39m
+[32m[DB]     SQLite connected[39m
+[CARD] Spawn scheduler started (every 20 min).
+[38;2;255;255;0m[BOT]    Connecting to WhatsApp…[39m
+[32m[BOT]    ✓ Connected to WhatsApp[39m
+[36m[BOT]    Name   : Alice[39m
+[36m[BOT]    Prefix : -[39m
+[36m[BOT]    Mods   : 1[39m
+[1m[32m[39m[22m
+[1m[32m  ✅ Ready[39m[22m
+[1m[32m[39m[22m
+[36m[CMD]    40 commands loaded[39m

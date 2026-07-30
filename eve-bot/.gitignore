@@ -4,3 +4,7 @@ node_modules/
 *.log
 *.zip
 package-lock.json
+session-backup.db
+sessions/
+*.sqlite-shm
+*.sqlite-wal

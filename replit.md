@@ -1,52 +1,36 @@
-# EVE Bot + Pokémon Bot — Monorepo
+# EVE Bot + Pokémon Bot
 
-Two WhatsApp bots built on [Baileys](https://github.com/WhiskeySockets/Baileys) and SQLite (via `better-sqlite3`), running as separate Replit workflows.
+A monorepo with two independent WhatsApp bots built on [Baileys](https://github.com/WhiskeySockets/Baileys) and SQLite.
 
----
+## Bots
 
-## Project Layout
+### EVE Bot (`eve-bot/`)
+- Feature-packed WhatsApp bot: Pokémon, anime card game, economy, moderation, media tools, AI chat
+- Stack: Node.js, Baileys, SQLite (better-sqlite3), Express dashboard (React/Vite)
+- **Workflow:** `Start Bot` — runs `cd eve-bot && bash start.sh`
+- Dashboard available on port 3000
+- Config: `eve-bot/config.js` (BOT_NAME, PREFIX). Owner auto-assigned from WhatsApp session.
+- Session: saved in `eve-bot/sessions/` — reconnects without QR on restart
 
-```
-eve-bot/          Full-featured WhatsApp bot (Pokémon, economy, AI, moderation, dashboard)
-pokemon-bot/      Standalone WhatsApp Pokémon battle bot (PVE / PVP)
-```
+### Pokémon Bot (`pokemon-bot/`)
+- Standalone WhatsApp PVP/PVE Pokémon battle bot
+- Stack: Node.js, Baileys, SQLite, Express dashboard (React/Vite)
+- **Workflow:** `Pokemon Bot` — runs `cd pokemon-bot && bash start.sh`
+- Dashboard available on port 3001
+- No `.env` required. Bot prefix is `!` (hardcoded).
+- Session: saved in `pokemon-bot/auth_info_pokemon/` — scan QR on first run
 
----
+## Running
 
-## Running the Bots
+Both workflows are pre-configured. Start them via the Workflows panel.
 
-### eve-bot (Start Bot workflow)
-- Workflow: **Start Bot** → `cd eve-bot && bash start.sh`
-- Connects automatically — session is already saved in `eve-bot/sessions/`
-- Builds the React dashboard on first run (or when source files change)
-- Dashboard available on port **3000** (admin password: `0000` by default)
-- Config: `eve-bot/config.js` (bot name, prefix, optional API keys)
+On first run, Pokémon Bot will print a QR code in the terminal — scan with WhatsApp → Linked Devices → Link a Device.
 
-### pokemon-bot (Pokemon Bot workflow)
-- Workflow: **Pokemon Bot** → `cd pokemon-bot && bash start.sh`
-- **First run requires a QR scan**: WhatsApp → Linked Devices → Link a Device
-- After scanning, session is saved in `pokemon-bot/auth_info_pokemon/` and reconnects automatically on restart
-- Prefix: `!`  Commands: `!start`, `!pve`, `!pvp`, `!fight`
+EVE Bot will reconnect automatically after the first scan (session is already saved).
 
----
-
-## System Dependencies
-
-Both bots need `libuuid` for the `canvas` native addon. The `start.sh` scripts resolve this automatically on NixOS/Replit by finding the library in the Nix store.
-
----
-
-## Environment Variables (eve-bot)
-
-Configured in `eve-bot/config.js`. Optional env vars:
-
-| Variable         | Purpose                        |
-|------------------|--------------------------------|
-| `OPENAI_KEY`     | AI chat feature                |
-| `REMOVEBG_KEY`   | Background removal feature     |
-
----
+## Requirements (handled by NixOS/Replit)
+- Node.js ≥ 18
+- ffmpeg (system)
+- Native canvas libraries (libuuid resolved automatically in start.sh)
 
 ## User Preferences
-
-_None recorded yet._

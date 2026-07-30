@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Swords, Terminal } from 'lucide-react';
+import { LayoutDashboard, Users, Swords, Globe2, ShieldCheck } from 'lucide-react';
 import { api } from '../services/api.js';
 
 const NAV = [
   { to: '/',        label: 'Overview', Icon: LayoutDashboard, end: true },
   { to: '/players', label: 'Players',  Icon: Users },
   { to: '/battles', label: 'Battles',  Icon: Swords },
-  { to: '/logs',    label: 'Live Logs',Icon: Terminal },
+  { to: '/groups',  label: 'Groups',   Icon: Globe2 },
+  { to: '/admin',   label: 'Admin',    Icon: ShieldCheck },
 ];
 
 export default function Layout() {
@@ -41,12 +42,24 @@ export default function Layout() {
 
         <nav className="sidebar-nav">
           <div className="nav-section-label">Monitor</div>
-          {NAV.map(({ to, label, Icon, end }) => (
+          {NAV.slice(0, 4).map(({ to, label, Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
               className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+            >
+              <Icon size={15} />
+              {label}
+            </NavLink>
+          ))}
+
+          <div className="nav-section-label" style={{ marginTop: 8 }}>Manage</div>
+          {NAV.slice(4).map(({ to, label, Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) => `nav-link nav-link-admin${isActive ? ' active' : ''}`}
             >
               <Icon size={15} />
               {label}

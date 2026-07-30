@@ -6,6 +6,12 @@
 
 set -e
 
+# ── Install dependencies if node_modules is missing ───────────────────────────
+if [ ! -d "node_modules" ]; then
+    echo "[SETUP] Installing bot dependencies..."
+    npm install --silent
+fi
+
 # ── Resolve libuuid.so.1 first (needed for npm build too if canvas is used) ───
 for f in /nix/store/*util-linux*/lib/libuuid.so.1; do
     if [ -f "$f" ]; then
